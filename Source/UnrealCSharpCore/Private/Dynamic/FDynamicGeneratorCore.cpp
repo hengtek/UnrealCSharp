@@ -1,4 +1,6 @@
 #include "Dynamic/FDynamicGeneratorCore.h"
+
+#include "AssetToolsModule.h"
 #include "CoreMacro/NamespaceMacro.h"
 #include "CoreMacro/PropertyAttributeMacro.h"
 #include "CoreMacro/FunctionAttributeMacro.h"
@@ -8,6 +10,7 @@
 #include "Common/FUnrealCSharpFunctionLibrary.h"
 #include "Log/UnrealCSharpLog.h"
 #include "Misc/FileHelper.h"
+#include "Misc/NamePermissionList.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -194,12 +197,33 @@ TArray<FString> FDynamicGeneratorCore::FunctionMetaDataAttrs =
 
 UPackage* FDynamicGeneratorCore::GetOuter()
 {
-	return UObject::StaticClass()->GetPackage();
+	static UPackage* UnrealSharpPackage;
+
+	if(UnrealSharpPackage == nullptr)
+	{
+		UnrealSharpPackage = NewObject<UPackage>(nullptr, "/Script/UnrealCSharp", RF_Public | RF_Standalone);
+
+		UnrealSharpPackage->SetPackageFlags(PKG_CompiledIn);
+
+#if WITH_EDITOR
+		// Deny any classes from being Edited in BP that's in the UnrealSharp package. Otherwise it would crash the engine.
+		// Workaround for a hardcoded feature in the engine for Blueprints.
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+	
+		AssetToolsModule.Get().GetWritableFolderPermissionList()->AddDenyListItem(UnrealSharpPackage->GetFName(), UnrealSharpPackage->GetFName());
+#endif
+
+		UnrealSharpPackage->AddToRoot();
+	}
+	
+	return UnrealSharpPackage;
 }
 
 FString FDynamicGeneratorCore::GetClassNameSpace()
 {
-	return FUnrealCSharpFunctionLibrary::GetClassNameSpace(UObject::StaticClass());
+	auto  x = GetOuter()->GetName();
+	
+	return GetOuter()->GetName();
 }
 
 void FDynamicGeneratorCore::SetPropertyFlags(FProperty* InProperty, MonoCustomAttrInfo* InMonoCustomAttrInfo)
