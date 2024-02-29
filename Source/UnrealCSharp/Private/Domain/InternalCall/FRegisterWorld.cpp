@@ -1,5 +1,4 @@
 ﻿#include "Binding/Class/TBindingClassBuilder.inl"
-#include "Binding/Class/TReflectionClassBuilder.inl"
 #include "Binding/Enum/TBindingEnumBuilder.inl"
 #include "Environment/FCSharpEnvironment.h"
 #include "CoreMacro/NamespaceMacro.h"
@@ -32,7 +31,7 @@ struct FRegisterActorSpawnParameters
 {
 	FRegisterActorSpawnParameters()
 	{
-		TBindingClassBuilder<FActorSpawnParameters>(NAMESPACE_BINDING)
+		TBindingClassBuilder<FActorSpawnParameters, FActorSpawnParameters>(NAMESPACE_BINDING)
 			.Property("Name", BINDING_PROPERTY(&FActorSpawnParameters::Name))
 			.Property("Template", BINDING_PROPERTY(&FActorSpawnParameters::Template))
 			.Property("Owner", BINDING_PROPERTY(&FActorSpawnParameters::Owner))
@@ -84,7 +83,7 @@ struct FRegisterWorld
 
 	FRegisterWorld()
 	{
-		TReflectionClassBuilder<UWorld>(NAMESPACE_LIBRARY)
+		TBindingClassBuilder<UWorld, UWorld>(NAMESPACE_LIBRARY)
 			.Function("SpawnActor", SpawnActorImplementation)
 			.Register();
 	}
