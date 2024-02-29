@@ -17,7 +17,9 @@
 #include "BlueprintActionDatabase.h"
 #endif
 #include "UEVersion.h"
+#include "Domain/UCSScriptStruct.h"
 #include "Kismet2/ReloadUtilities.h"
+#include "Kismet2/StructureEditorUtils.h"
 
 TMap<FString, UScriptStruct*> FDynamicStructGenerator::DynamicStructMap;
 
@@ -179,29 +181,34 @@ void FDynamicStructGenerator::ProcessGenerator(MonoClass* InMonoClass, UScriptSt
 
 void FDynamicStructGenerator::EndGenerator(UScriptStruct* InScriptStruct)
 {
-	InScriptStruct->Bind();
+	// InScriptStruct->Bind();
 
 	InScriptStruct->StaticLink(true);
 
-	if (InScriptStruct->GetPropertiesSize() == 0)
-	{
-		InScriptStruct->SetPropertiesSize(1);
-	}
+	// if (InScriptStruct->GetPropertiesSize() == 0)
+	// {
+	// 	InScriptStruct->SetPropertiesSize(1);
+	// }
 
-	InScriptStruct->SetInternalFlags(EInternalObjectFlags::Native);
-
-	InScriptStruct->StructFlags = STRUCT_Native;
+	// InScriptStruct->SetInternalFlags(EInternalObjectFlags::Native);
+	//
+	// InScriptStruct->StructFlags = STRUCT_Native;
 
 #if WITH_EDITOR
-	if (GEditor)
-	{
-		FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
-
-		ActionDatabase.ClearAssetActions(InScriptStruct);
-
-		ActionDatabase.RefreshAssetActions(InScriptStruct);
-	}
+	// if (GEditor)
+	// {
+	// 	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+	//
+	// 	ActionDatabase.ClearAssetActions(InScriptStruct);
+	//
+	// 	ActionDatabase.RefreshAssetActions(InScriptStruct);
+	// }
 #endif
+
+	if(auto x1 = Cast<UUCSScriptStruct>(InScriptStruct))
+	{
+		x1->RecreateDefaults();
+	}
 
 #if UE_NOTIFY_REGISTRATION_EVENT
 #if !WITH_EDITOR
@@ -245,11 +252,23 @@ UScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* In
                                                                     const TFunction<void(UScriptStruct*)>&
                                                                     InProcessGenerator)
 {
-	const auto ScriptStruct = NewObject<UScriptStruct>(InOuter, *InName.RightChop(1), RF_Public | RF_Standalone);
+	// const auto ScriptStruct = NewObject<UScriptStruct>(InOuter, *InName.RightChop(1), RF_Public | RF_Standalone);
 
+	const auto ScriptStruct = NewObject<UUCSScriptStruct>(InOuter, *InName, RF_Public | RF_Standalone);
+	
 	ScriptStruct->AddToRoot();
 
+// #if WITH_EDITOR
+// 	ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+// 	ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
+// #endif
+
 	GeneratorScriptStruct(InName, ScriptStruct, InParentScriptStruct, InProcessGenerator);
+
+#if WITH_EDITOR
+	ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+	ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
+#endif
 
 	return ScriptStruct;
 }
@@ -257,13 +276,100 @@ UScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* In
 #if WITH_EDITOR
 void FDynamicStructGenerator::ReInstance(UScriptStruct* InOldScriptStruct, UScriptStruct* InNewScriptStruct)
 {
-	FReload Reload(EActiveReloadType::Reinstancing, TEXT(""), *GLog);
+	for (TObjectIterator<UBlueprintGeneratedClass> ObjectIterator; ObjectIterator; ++ObjectIterator)
+	{
+		if(const auto Blueprint = Cast<UBlueprint>(ObjectIterator->ClassGeneratedBy))
+		{
+			if(Blueprint->GetName().Contains("NewBlueprint"))
+			{
+				auto x = 10;
+			}
+					
+			TArray<UK2Node*> AllNodes;
+	                
+			FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, AllNodes);
 
-	Reload.NotifyChange(InNewScriptStruct, InOldScriptStruct);
-
-	Reload.Reinstance();
+			auto x = 10;
+		}
+	}
+	TArray<UClass*> DynamicClasses;
 	
-	Reload.Finalize();
+	TArray<UBlueprintGeneratedClass*> BlueprintGeneratedClasses;
+	
+	FDynamicGeneratorCore::IteratorObject<UClass>(
+		[InOldScriptStruct](const TObjectIterator<UClass>& InClass)
+		{
+			for (TFieldIterator<FProperty> It(*InClass, EFieldIteratorFlags::ExcludeSuper,
+											  EFieldIteratorFlags::ExcludeDeprecated); It; ++It)
+			{
+				if (const auto StructProperty = CastField<FStructProperty>(*It))
+				{
+					if (StructProperty->Struct == InOldScriptStruct)
+					{
+						return true;
+					}
+				}
+			}
+	
+			return false;
+		},
+		[&DynamicClasses, &BlueprintGeneratedClasses](const TObjectIterator<UClass>& InClass)
+		{
+			if (FDynamicClassGenerator::IsDynamicClass(*InClass))
+			{
+				DynamicClasses.AddUnique(*InClass);
+			}
+			else if (const auto BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(*InClass))
+			{
+				if (!FUnrealCSharpFunctionLibrary::IsSpecialClass(*InClass))
+				{
+					BlueprintGeneratedClasses.AddUnique(BlueprintGeneratedClass);
+				}
+			}
+		});
+
+	for (const auto BlueprintGeneratedClass : BlueprintGeneratedClasses)
+	{
+		const auto Blueprint = Cast<UBlueprint>(BlueprintGeneratedClass->ClassGeneratedBy);
+
+		for (const auto& Variable : Blueprint->NewVariables)
+		{
+			if (Variable.VarType.PinSubCategoryObject == InOldScriptStruct)
+			{
+				auto NewVarType = Variable.VarType;
+		
+				NewVarType.PinSubCategoryObject = InNewScriptStruct;
+		
+				FBlueprintEditorUtils::ChangeMemberVariableType(Blueprint, Variable.VarName, NewVarType);
+		
+				// bIsRefresh = true;
+			}
+		}
+
+		FBlueprintEditorUtils::RefreshVariables(Blueprint);
+
+		//
+		// FBlueprintEditorUtils::RefreshAllNodes(Blueprint);
+		//
+		// FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		//
+		// constexpr auto BlueprintCompileOptions = EBlueprintCompileOptions::SkipGarbageCollection |
+		// 	EBlueprintCompileOptions::SkipSave;
+		//
+		// FKismetEditorUtilities::CompileBlueprint(Blueprint, BlueprintCompileOptions);
+	}
+
+	// FStructureEditorUtils::CompileStructure(Cast<UUserDefinedStruct>(InNewScriptStruct));
+	// return;
+	// TUniquePtr<FReload> Reload = MakeUnique<FReload>(EActiveReloadType::Reinstancing, TEXT(""), *GLog);
+	//
+	// Reload->NotifyChange(InNewScriptStruct, InOldScriptStruct);
+	//
+	// Reload->Reinstance();
+	//
+	// Reload->Finalize();
+	//
+	// CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	
 	// TArray<UClass*> DynamicClasses;
 	//
@@ -300,6 +406,34 @@ void FDynamicStructGenerator::ReInstance(UScriptStruct* InOldScriptStruct, UScri
 	// 			}
 	// 		}
 	// 	});
+	//
+	// for (const auto BlueprintGeneratedClass : BlueprintGeneratedClasses)
+	// {
+	// 	const auto Blueprint = Cast<UBlueprint>(BlueprintGeneratedClass->ClassGeneratedBy);
+	//
+	// 		for (const auto& Variable : Blueprint->NewVariables)
+	// 		{
+	// 			if (Variable.VarType.PinSubCategoryObject == InOldScriptStruct)
+	// 			{
+	// 				auto NewVarType = Variable.VarType;
+	// 	
+	// 				NewVarType.PinSubCategoryObject = InNewScriptStruct;
+	// 	
+	// 				// FBlueprintEditorUtils::ChangeMemberVariableType(Blueprint, Variable.VarName, NewVarType);
+	// 	
+	// 				// bIsRefresh = true;
+	// 			}
+	// 		}
+	// 			//
+	// 			// FBlueprintEditorUtils::RefreshAllNodes(Blueprint);
+	// 			//
+	// 			// FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	// 			//
+	// 			// constexpr auto BlueprintCompileOptions = EBlueprintCompileOptions::SkipGarbageCollection |
+	// 			// 	EBlueprintCompileOptions::SkipSave;
+	// 			//
+	// 			// FKismetEditorUtilities::CompileBlueprint(Blueprint, BlueprintCompileOptions);
+	// }
 	//
 	// FDynamicGeneratorCore::IteratorObject<UBlueprintGeneratedClass>(
 	// 	[](const TObjectIterator<UBlueprintGeneratedClass>& InBlueprintGeneratedClass)

@@ -221,9 +221,11 @@ UPackage* FDynamicGeneratorCore::GetOuter()
 
 FString FDynamicGeneratorCore::GetClassNameSpace()
 {
-	auto  x = GetOuter()->GetName();
-	
-	return GetOuter()->GetName();
+	// auto  x = GetOuter()->GetName();
+	//
+	// return GetOuter()->GetName();
+
+	return TEXT("Script.UnrealCSharp");
 }
 
 void FDynamicGeneratorCore::SetPropertyFlags(FProperty* InProperty, MonoCustomAttrInfo* InMonoCustomAttrInfo)
