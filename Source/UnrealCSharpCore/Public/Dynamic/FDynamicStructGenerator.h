@@ -20,6 +20,7 @@ public:
 private:
 	static void BeginGenerator(UScriptStruct* InScriptStruct, UScriptStruct* InParentScriptStruct);
 
+public:
 	static void ProcessGenerator(MonoClass* InMonoClass, UScriptStruct* InScriptStruct);
 
 	static void EndGenerator(UScriptStruct* InScriptStruct);
@@ -36,7 +37,7 @@ private:
 	                                                  const TFunction<void(UScriptStruct*)>& InProcessGenerator);
 
 #if WITH_EDITOR
-	static void ReInstance(UScriptStruct* InOldScriptStruct, UScriptStruct* InNewScriptStruct);
+	static void ReInstance(UScriptStruct* InOldScriptStruct, UScriptStruct* InNewScriptStruct, MonoClass* InMonoClass);
 
 	static void GeneratorMetaData(MonoClass* InMonoClass, UScriptStruct* InScriptStruct);
 #endif

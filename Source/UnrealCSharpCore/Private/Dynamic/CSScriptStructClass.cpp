@@ -1,4 +1,3 @@
-
 #include "Domain/UCSScriptStruct.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 

@@ -141,7 +141,7 @@ struct FUSCppStructOps : UScriptStruct::ICppStructOps
 	}
 
 	virtual bool HasNoopConstructor() override {return false;}
-	virtual bool HasZeroConstructor() override {return false;}
+	virtual bool HasZeroConstructor() override {return true;}
 	virtual bool HasDestructor() override {return true;}
 	virtual bool HasSerializer() override {return false;}
 	virtual bool HasStructuredSerializer() override {return false;}
