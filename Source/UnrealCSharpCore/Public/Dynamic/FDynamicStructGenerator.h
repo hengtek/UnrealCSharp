@@ -36,6 +36,8 @@ public:
 	                                                  UScriptStruct* InParentScriptStruct,
 	                                                  const TFunction<void(UScriptStruct*)>& InProcessGenerator);
 
+	static void ProcessGenerator1(MonoClass* InMonoClass, UScriptStruct* InScriptStruct);
+
 #if WITH_EDITOR
 	static void ReInstance(UScriptStruct* InOldScriptStruct, UScriptStruct* InNewScriptStruct, MonoClass* InMonoClass);
 

@@ -3,6 +3,8 @@
 
 void UUCSScriptStruct::PrepareCppStructOps()
 {
+	UUserDefinedStruct::PrepareCppStructOps();
+	
 	if (!CppStructOps)
 	{
 		CppStructOps = new FUSCppStructOps(GetStructureSize(), GetMinAlignment(), this);

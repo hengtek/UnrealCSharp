@@ -27,6 +27,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/ReloadUtilities.h"
 #include "Kismet2/StructureEditorUtils.h"
+#include "Serialization/ObjectWriter.h"
 #include "UObject/FieldIterator.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 
@@ -93,6 +94,27 @@ void FDynamicStructGenerator::CodeAnalysisGenerator()
 	}
 }
 #endif
+
+static UUserDefinedStruct* CreateUserDefinedStruct(UObject* InParent, FName Name, EObjectFlags Flags)
+{
+	UUserDefinedStruct* Struct = NULL;
+	
+	if (FStructureEditorUtils::UserDefinedStructEnabled())
+	{
+		Struct = NewObject<UUserDefinedStruct>(InParent, Name, Flags);
+		check(Struct);
+		Struct->EditorData = NewObject<UUserDefinedStructEditorData>(Struct, NAME_None, RF_Transactional);
+		check(Struct->EditorData);
+
+		Struct->Guid = FGuid::NewGuid();
+		Struct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+		Struct->Bind();
+		Struct->StaticLink(true);
+		Struct->Status = UDSS_Error;
+	}
+
+	return Struct;
+}
 
 void FDynamicStructGenerator::Generator(MonoClass* InMonoClass)
 {
@@ -261,9 +283,9 @@ void FDynamicStructGenerator::GeneratorScriptStruct(const FString& InName, UScri
 	DynamicStructSet.Add(InScriptStruct);
 
 	BeginGenerator(InScriptStruct, InParentScriptStruct);
-
+	
 	InProcessGenerator(InScriptStruct);
-
+	
 	EndGenerator(InScriptStruct);
 }
 
@@ -304,6 +326,10 @@ UScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* In
 	return ScriptStruct;
 }
 
+void FDynamicStructGenerator::ProcessGenerator1(MonoClass* InMonoClass, UScriptStruct* InScriptStruct)
+{
+}
+
 struct FUserDefinedStructureCompilerInner
 {
 	struct FBlueprintUserStructData
@@ -319,8 +345,8 @@ struct FUserDefinedStructureCompilerInner
 			FBlueprintUserStructData& BlueprintData = BlueprintsToRecompile.Add(FoundBlueprint);
 
 			// Write CDO data to temp archive
-			//FObjectWriter SkeletonMemoryWriter(FoundBlueprint->SkeletonGeneratedClass->GetDefaultObject(), BlueprintData.SkeletonCDOData);
-			//FObjectWriter MemoryWriter(FoundBlueprint->GeneratedClass->GetDefaultObject(), BlueprintData.GeneratedCDOData);
+			FObjectWriter SkeletonMemoryWriter(FoundBlueprint->SkeletonGeneratedClass->GetDefaultObject(), BlueprintData.SkeletonCDOData);
+			FObjectWriter MemoryWriter(FoundBlueprint->GeneratedClass->GetDefaultObject(), BlueprintData.GeneratedCDOData);
 
 			for (UFunction* Function : TFieldRange<UFunction>(FoundBlueprint->GeneratedClass, EFieldIteratorFlags::ExcludeSuper))
 			{
@@ -348,8 +374,12 @@ struct FUserDefinedStructureCompilerInner
 
 			DuplicatedStruct->Guid = StructureToReinstance->Guid;
 			FDynamicStructGenerator::ProcessGenerator(InMonoClass, DuplicatedStruct);
+			DuplicatedStruct->UUserDefinedStruct::PrepareCppStructOps();
+			// DuplicatedStruct->ClearCppStructOps();
+			// DuplicatedStruct->PrepareCppStructOps();
 			DuplicatedStruct->Bind();
 			DuplicatedStruct->StaticLink(true);
+			DuplicatedStruct->PrepareCppStructOps();
 			DuplicatedStruct->PrimaryStruct = StructureToReinstance;
 			DuplicatedStruct->Status = EUserDefinedStructureStatus::UDSS_Duplicate;
 			DuplicatedStruct->SetFlags(RF_Transient);
@@ -370,7 +400,7 @@ struct FUserDefinedStructureCompilerInner
 						if (UBlueprint* FoundBlueprint = Cast<UBlueprint>(OwnerClass->ClassGeneratedBy))
 						{
 							ClearStructReferencesInBP(FoundBlueprint, BlueprintsToRecompile);
-							StructProperty->Struct = DuplicatedStruct;
+							// StructProperty->Struct = DuplicatedStruct;
 							StructsToRegenerateReferencesFor.Add(OwnerClass);
 						}
 					}
@@ -388,7 +418,7 @@ struct FUserDefinedStructureCompilerInner
 							if (FStructureEditorUtils::FStructEditorManager::ActiveChange != FStructureEditorUtils::EStructureEditorChangeInfo::DefaultValueChanged)
 							{
 								// Don't change this for a default value only change, it won't get correctly replaced later
-								StructProperty->Struct = DuplicatedStruct;
+								// StructProperty->Struct = DuplicatedStruct;
 								StructsToRegenerateReferencesFor.Add(OwnerStruct);
 							}
 						}
@@ -747,6 +777,8 @@ void FDynamicStructGenerator::ReInstance(UScriptStruct* InOldScriptStruct, UScri
 			}
 		);
 
+	x->Status = EUserDefinedStructureStatus::UDSS_UpToDate;
+
 		for (TPair<UBlueprint*, FUserDefinedStructureCompilerInner::FBlueprintUserStructData>& Pair : BlueprintsToRecompile)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Pair.Key);
@@ -761,7 +793,7 @@ void FDynamicStructGenerator::ReInstance(UScriptStruct* InOldScriptStruct, UScri
 			}
 		}
 
-	x->Status = EUserDefinedStructureStatus::UDSS_UpToDate;
+	// x->Status = EUserDefinedStructureStatus::UDSS_UpToDate;
 	// }
 	
 	return;
