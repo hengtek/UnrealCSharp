@@ -95,13 +95,13 @@ void FDynamicStructGenerator::CodeAnalysisGenerator()
 }
 #endif
 
-static UUserDefinedStruct* CreateUserDefinedStruct(UObject* InParent, FName Name, EObjectFlags Flags)
+static UUserDefinedStruct* CreateUserDefinedStruct(UObject* InOuter, FName Name, EObjectFlags Flags)
 {
 	UUserDefinedStruct* Struct = NULL;
 	
 	if (FStructureEditorUtils::UserDefinedStructEnabled())
 	{
-		Struct = NewObject<UUserDefinedStruct>(InParent, Name, Flags);
+		Struct = NewObject<UUserDefinedStruct>(InOuter, Name, Flags);
 		check(Struct);
 		Struct->EditorData = NewObject<UUserDefinedStructEditorData>(Struct, NAME_None, RF_Transactional);
 		check(Struct->EditorData);
@@ -165,17 +165,17 @@ void FDynamicStructGenerator::Generator(MonoClass* InMonoClass)
 		// 	.ToString(),
 		// 	nullptr,
 		// 	REN_DontCreateRedirectors);
-		ScriptStruct->DestroyChildPropertiesAndResetPropertyLinks();
+		// ScriptStruct->DestroyChildPropertiesAndResetPropertyLinks();
 		
 		GeneratorScriptStruct(ClassName, ScriptStruct, ParentClass, [InMonoClass](UScriptStruct* InScriptStruct)
 														  {
 															  ProcessGenerator(InMonoClass, InScriptStruct);
 														  });
 
-#if WITH_EDITOR
-		ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
-		ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
-#endif
+// #if WITH_EDITOR
+// 		ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+// 		ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
+// #endif
 	}
 	else
 	{
@@ -213,26 +213,26 @@ bool FDynamicStructGenerator::IsDynamicStruct(const UScriptStruct* InScriptStruc
 
 void FDynamicStructGenerator::BeginGenerator(UScriptStruct* InScriptStruct, UScriptStruct* InParentScriptStruct)
 {
-	if (InParentScriptStruct != nullptr)
-	{
-		InScriptStruct->SetSuperStruct(InParentScriptStruct);
-	}
+	// if (InParentScriptStruct != nullptr)
+	// {
+	// 	InScriptStruct->SetSuperStruct(InParentScriptStruct);
+	// }
 }
 
 void FDynamicStructGenerator::ProcessGenerator(MonoClass* InMonoClass, UScriptStruct* InScriptStruct)
 {
-#if WITH_EDITOR
-	GeneratorMetaData(InMonoClass, InScriptStruct);
-#endif
+// #if WITH_EDITOR
+// 	GeneratorMetaData(InMonoClass, InScriptStruct);
+// #endif
 
 	GeneratorProperty(InMonoClass, InScriptStruct);
 }
 
 void FDynamicStructGenerator::EndGenerator(UScriptStruct* InScriptStruct)
 {
-	InScriptStruct->Bind();
-
-	InScriptStruct->StaticLink(true);
+	// InScriptStruct->Bind();
+	//
+	// InScriptStruct->StaticLink(true);
 
 	// if (InScriptStruct->GetPropertiesSize() == 0)
 	// {
@@ -243,23 +243,23 @@ void FDynamicStructGenerator::EndGenerator(UScriptStruct* InScriptStruct)
 	//
 	// InScriptStruct->StructFlags = STRUCT_Native;
 
-#if WITH_EDITOR
-	if (GEditor)
-	{
-		FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
-	
-		ActionDatabase.ClearAssetActions(InScriptStruct);
-	
-		ActionDatabase.RefreshAssetActions(InScriptStruct);
-	}
-#endif
+// #if WITH_EDITOR
+// 	if (GEditor)
+// 	{
+// 		FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+// 	
+// 		ActionDatabase.ClearAssetActions(InScriptStruct);
+// 	
+// 		ActionDatabase.RefreshAssetActions(InScriptStruct);
+// 	}
+// #endif
 
-	if(auto x1 = Cast<UUCSScriptStruct>(InScriptStruct))
-	{
-		x1->RecreateDefaults();
-
-		// x1->InitializeDefaultValue(const_cast<uint8*>(x1->GetDefaultInstance()));
-	}
+	// if(auto x1 = Cast<UUCSScriptStruct>(InScriptStruct))
+	// {
+	// 	x1->RecreateDefaults();
+	//
+	// 	// x1->InitializeDefaultValue(const_cast<uint8*>(x1->GetDefaultInstance()));
+	// }
 
 #if UE_NOTIFY_REGISTRATION_EVENT
 #if !WITH_EDITOR
@@ -305,11 +305,11 @@ UScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* In
 {
 	// const auto ScriptStruct = NewObject<UScriptStruct>(InOuter, *InName.RightChop(1), RF_Public | RF_Standalone);
 
-	const auto ScriptStruct = NewObject<UUCSScriptStruct>(InOuter, *InName, RF_Public | RF_Standalone);
+	const auto ScriptStruct = CreateUserDefinedStruct(InOuter, *InName, RF_Public | RF_Standalone);
 	
 	ScriptStruct->AddToRoot();
 
-	ScriptStruct->EditorData = NewObject<UUserDefinedStructEditorData>(ScriptStruct, NAME_None, RF_Transactional);
+	// ScriptStruct->EditorData = NewObject<UUserDefinedStructEditorData>(ScriptStruct, NAME_None, RF_Transactional);
 
 // #if WITH_EDITOR
 // 	ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
@@ -318,10 +318,10 @@ UScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* In
 
 	GeneratorScriptStruct(InName, ScriptStruct, InParentScriptStruct, InProcessGenerator);
 
-#if WITH_EDITOR
-	ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
-	ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
-#endif
+// #if WITH_EDITOR
+// 	ScriptStruct->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+// 	ScriptStruct->SetMetaData(TEXT("IsBlueprintBase"), TEXT("true"));
+// #endif
 
 	return ScriptStruct;
 }
@@ -713,7 +713,7 @@ struct FUserDefinedStructureCompilerInner
 #if WITH_EDITOR
 void FDynamicStructGenerator::ReInstance(UScriptStruct* InOldScriptStruct, UScriptStruct* InNewScriptStruct,MonoClass* InMonoClass)
 {
-	
+	return;
 	auto x  = Cast<UUserDefinedStruct>(InOldScriptStruct);
 	
 	IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
@@ -1087,6 +1087,94 @@ void FDynamicStructGenerator::GeneratorMetaData(MonoClass* InMonoClass, UScriptS
 }
 #endif
 
+struct FMemberVariableNameHelper
+{
+	static FName Generate(UUserDefinedStruct* Struct, const FString& NameBase, const FGuid Guid, FString* OutFriendlyName = NULL)
+	{
+		check(Struct);
+
+		FString Result;
+		if (!NameBase.IsEmpty())
+		{
+			if (!FName::IsValidXName(NameBase, INVALID_OBJECTNAME_CHARACTERS))
+			{
+				Result = MakeObjectNameFromDisplayLabel(NameBase, NAME_None).GetPlainNameString();
+			}
+			else
+			{
+				Result = NameBase;
+			}
+		}
+
+		if (Result.IsEmpty())
+		{
+			Result = TEXT("MemberVar");
+		}
+
+		const uint32 UniqueNameId = CastChecked<UUserDefinedStructEditorData>(Struct->EditorData)->GenerateUniqueNameIdForMemberVariable();
+		const FString FriendlyName = FString::Printf(TEXT("%s_%u"), *Result, UniqueNameId);
+		if (OutFriendlyName)
+		{
+			*OutFriendlyName = FriendlyName;
+		}
+		const FName NameResult = *FString::Printf(TEXT("%s_%s"), *FriendlyName, *Guid.ToString(EGuidFormats::Digits));
+		check(NameResult.IsValidXName(INVALID_OBJECTNAME_CHARACTERS));
+		return NameResult;
+	}
+
+	static FGuid GetGuidFromName(const FName Name)
+	{
+		const FString NameStr = Name.ToString();
+		const int32 GuidStrLen = 32;
+		if (NameStr.Len() > (GuidStrLen + 1))
+		{
+			const int32 UnderscoreIndex = NameStr.Len() - GuidStrLen - 1;
+			if (TCHAR('_') == NameStr[UnderscoreIndex])
+			{
+				const FString GuidStr = NameStr.Right(GuidStrLen);
+				FGuid Guid;
+				if (FGuid::ParseExact(GuidStr, EGuidFormats::Digits, Guid))
+				{
+					return Guid;
+				}
+			}
+		}
+		return FGuid();
+	}
+};
+
+bool AddVariable(UUserDefinedStruct* Struct, const FEdGraphPinType& VarType, const FString& NameBase)
+{
+	if (Struct)
+	{
+		FStructureEditorUtils::ModifyStructData(Struct);
+
+		FString ErrorMessage;
+		if (!FStructureEditorUtils::CanHaveAMemberVariableOfType(Struct, VarType, &ErrorMessage))
+		{
+			UE_LOG(LogBlueprint, Warning, TEXT("%s"), *ErrorMessage);
+			return false;
+		}
+
+		const FGuid Guid = FGuid::NewGuid();
+		// FString DisplayName;
+		// const FName VarName = FMemberVariableNameHelper::Generate(Struct, NameBase, Guid, &DisplayName);
+		// check(NULL == FStructureEditorUtils::GetVarDesc(Struct).FindByPredicate(FStructureEditorUtils::FFindByNameHelper<FStructVariableDescription>(VarName)));
+		// check(FStructureEditorUtils::IsUniqueVariableFriendlyName(Struct, DisplayName));
+
+		FStructVariableDescription NewVar;
+		NewVar.VarName = *NameBase;
+		NewVar.FriendlyName = NameBase;
+		NewVar.SetPinType(VarType);
+		NewVar.VarGuid = Guid;
+		FStructureEditorUtils::GetVarDesc(Struct).Add(NewVar);
+
+		FStructureEditorUtils::OnStructureChanged(Struct, FStructureEditorUtils::EStructureEditorChangeInfo::AddedVariable);
+		return true;
+	}
+	return false;
+}
+
 void FDynamicStructGenerator::GeneratorProperty(MonoClass* InMonoClass, UScriptStruct* InScriptStruct)
 {
 	if (InMonoClass == nullptr || InScriptStruct == nullptr)
@@ -1111,12 +1199,13 @@ void FDynamicStructGenerator::GeneratorProperty(MonoClass* InMonoClass, UScriptS
 
 				const auto ReflectionType = FMonoDomain::Type_Get_Object(PropertyType);
 
-				const auto CppProperty = FTypeBridge::Factory(ReflectionType, InScriptStruct, PropertyName,
-				                                              EObjectFlags::RF_Public);
-
-				FDynamicGeneratorCore::SetPropertyFlags(CppProperty, Attrs);
-
-				InScriptStruct->AddCppProperty(CppProperty);
+				// const auto CppProperty = FTypeBridge::Factory(ReflectionType, InScriptStruct, PropertyName,
+				//                                               EObjectFlags::RF_Public);
+				//
+				// FDynamicGeneratorCore::SetPropertyFlags(CppProperty, Attrs);
+				//
+				// InScriptStruct->AddCppProperty(CppProperty);
+				AddVariable(Cast<UUserDefinedStruct>(InScriptStruct), FEdGraphPinType(UEdGraphSchema_K2::PC_Boolean, NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType()), PropertyName);
 			}
 		}
 	}
