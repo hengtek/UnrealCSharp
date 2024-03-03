@@ -1,9 +1,32 @@
 #pragma once
 
 #include "TClassBuilder.inl"
+#include "Template/TIsReflection.inl"
+
+template <typename T, typename Enable = void>
+class TBindingClassBuilder
+{
+};
 
 template <typename T>
-class TBindingClassBuilder final : public TClassBuilder<T>
+class TBindingClassBuilder<T, std::enable_if_t<TIsReflection<T>::Value, T>> final :
+	public TClassBuilder<T>
+{
+public:
+	explicit TBindingClassBuilder(const FString& InImplementationNameSpace):
+		TClassBuilder<T>(InImplementationNameSpace)
+	{
+	}
+
+	virtual bool IsReflection() const override
+	{
+		return true;
+	}
+};
+
+template <typename T>
+class TBindingClassBuilder<T, std::enable_if_t<!TIsReflection<T>::Value, T>> final :
+	public TClassBuilder<T>
 {
 public:
 	explicit TBindingClassBuilder(const FString& InImplementationNameSpace):
@@ -21,7 +44,7 @@ public:
 	TBindingClassBuilder& Inheritance(const FString& InImplementationNameSpace)
 	{
 		TClassBuilder<T>::GetBindingClass()->Inheritance(TClassName<Class>::Get(), InImplementationNameSpace,
-		                                                 TTypeInfo<Class>::Get());
+														 TTypeInfo<Class>::Get());
 
 		return *this;
 	}
