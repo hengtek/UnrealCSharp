@@ -29,10 +29,10 @@ private:
 	                                  UScriptStruct* InParentScriptStruct,
 	                                  const TFunction<void(UDynamicScriptStruct*)>& InProcessGenerator);
 
-	static UDynamicScriptStruct* GeneratorCSharpScriptStruct(UPackage* InOuter, const FString& InName,
+	static UDynamicScriptStruct* GeneratorScriptStruct(UPackage* InOuter, const FString& InName,
 	                                                         UScriptStruct* InParentScriptStruct);
 
-	static UDynamicScriptStruct* GeneratorCSharpScriptStruct(UPackage* InOuter, const FString& InName,
+	static UDynamicScriptStruct* GeneratorScriptStruct(UPackage* InOuter, const FString& InName,
 	                                                         UScriptStruct* InParentScriptStruct,
 	                                                         const TFunction<void(UDynamicScriptStruct*)>&
 	                                                         InProcessGenerator);

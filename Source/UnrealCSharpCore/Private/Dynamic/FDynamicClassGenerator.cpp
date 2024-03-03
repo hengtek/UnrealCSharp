@@ -2,14 +2,10 @@
 #include "Bridge/FTypeBridge.h"
 #include "Common/FUnrealCSharpFunctionLibrary.h"
 #include "CoreMacro/ClassMacro.h"
-#include "CoreMacro/FunctionMacro.h"
-#include "CoreMacro/MonoMacro.h"
 #include "CoreMacro/NamespaceMacro.h"
 #include "CoreMacro/PropertyAttributeMacro.h"
 #include "Domain/FMonoDomain.h"
 #include "Dynamic/FDynamicGeneratorCore.h"
-#include "Template/TGetArrayLength.inl"
-#include "mono/metadata/object.h"
 #if WITH_EDITOR
 #include "BlueprintActionDatabase.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -32,39 +28,11 @@ TSet<UClass*> FDynamicClassGenerator::DynamicClassSet;
 
 void FDynamicClassGenerator::Generator()
 {
-	const auto AttributeMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_DYNAMIC), CLASS_U_CLASS_ATTRIBUTE);
-
-	const auto AttributeMonoType = FMonoDomain::Class_Get_Type(AttributeMonoClass);
-
-	const auto AttributeMonoReflectionType = FMonoDomain::Type_Get_Object(AttributeMonoType);
-
-	const auto UtilsMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_CORE_UOBJECT), CLASS_UTILS);
-
-	void* InParams[2] = {
-		AttributeMonoReflectionType,
-		FMonoDomain::GCHandle_Get_Target_V2(FMonoDomain::AssemblyGCHandles[1])
-	};
-
-	const auto GetTypesWithAttributeMethod = FMonoDomain::Class_Get_Method_From_Name(
-		UtilsMonoClass, FUNCTION_UTILS_GET_TYPES_WITH_ATTRIBUTE, TGetArrayLength(InParams));
-
-	const auto Types = reinterpret_cast<MonoArray*>(FMonoDomain::Runtime_Invoke(
-		GetTypesWithAttributeMethod, nullptr, InParams));
-
-	const auto Length = FMonoDomain::Array_Length(Types);
-
-	for (auto Index = 0; Index < Length; ++Index)
-	{
-		const auto ReflectionType = ARRAY_GET(Types, MonoReflectionType*, Index);
-
-		const auto Type = FMonoDomain::Reflection_Type_Get_Type(ReflectionType);
-
-		const auto Class = FMonoDomain::Type_Get_Class(Type);
-
-		Generator(Class);
-	}
+	FDynamicGeneratorCore::Generator(CLASS_U_CLASS_ATTRIBUTE,
+		[](MonoClass* InMonoClass)
+		{
+			Generator(InMonoClass);
+		});
 }
 
 #if WITH_EDITOR
@@ -86,12 +54,12 @@ void FDynamicClassGenerator::CodeAnalysisGenerator()
 		{
 			if (IsDynamicBlueprintGeneratedClass(ClassName))
 			{
-				GeneratorCSharpBlueprintGeneratedClass(FDynamicGeneratorCore::GetOuter(), ClassName,
+				GeneratorBlueprintGeneratedClass(FDynamicGeneratorCore::GetOuter(), ClassName,
 				                                       AActor::StaticClass());
 			}
 			else
 			{
-				GeneratorCSharpClass(FDynamicGeneratorCore::GetOuter(), ClassName, AActor::StaticClass());
+				GeneratorClass(FDynamicGeneratorCore::GetOuter(), ClassName, AActor::StaticClass());
 			}
 		}
 	}
@@ -179,7 +147,7 @@ void FDynamicClassGenerator::Generator(MonoClass* InMonoClass)
 
 	if (IsDynamicBlueprintGeneratedClass(ClassName))
 	{
-		Class = GeneratorCSharpBlueprintGeneratedClass(Outer, ClassName, ParentClass,
+		Class = GeneratorBlueprintGeneratedClass(Outer, ClassName, ParentClass,
 		                                               [InMonoClass](UClass* InClass)
 		                                               {
 			                                               ProcessGenerator(InMonoClass, InClass);
@@ -187,7 +155,7 @@ void FDynamicClassGenerator::Generator(MonoClass* InMonoClass)
 	}
 	else
 	{
-		Class = GeneratorCSharpClass(Outer, ClassName, ParentClass,
+		Class = GeneratorClass(Outer, ClassName, ParentClass,
 		                             [InMonoClass](UClass* InClass)
 		                             {
 			                             ProcessGenerator(InMonoClass, InClass);
@@ -347,16 +315,16 @@ void FDynamicClassGenerator::EndGenerator(UClass* InClass)
 #endif
 }
 
-UClass* FDynamicClassGenerator::GeneratorCSharpClass(
+UClass* FDynamicClassGenerator::GeneratorClass(
 	UPackage* InOuter, const FString& InName, UClass* InParentClass)
 {
-	return GeneratorCSharpClass(InOuter, InName, InParentClass,
+	return GeneratorClass(InOuter, InName, InParentClass,
 	                            [](UClass*)
 	                            {
 	                            });
 }
 
-UClass* FDynamicClassGenerator::GeneratorCSharpClass(UPackage* InOuter, const FString& InName, UClass* InParentClass,
+UClass* FDynamicClassGenerator::GeneratorClass(UPackage* InOuter, const FString& InName, UClass* InParentClass,
                                                      const TFunction<void(UClass*)>& InProcessGenerator)
 {
 	const auto Class = NewObject<UClass>(InOuter, *InName.RightChop(1), RF_Public);
@@ -368,16 +336,16 @@ UClass* FDynamicClassGenerator::GeneratorCSharpClass(UPackage* InOuter, const FS
 	return Class;
 }
 
-UBlueprintGeneratedClass* FDynamicClassGenerator::GeneratorCSharpBlueprintGeneratedClass(
+UBlueprintGeneratedClass* FDynamicClassGenerator::GeneratorBlueprintGeneratedClass(
 	UPackage* InOuter, const FString& InName, UClass* InParentClass)
 {
-	return GeneratorCSharpBlueprintGeneratedClass(InOuter, InName, InParentClass,
+	return GeneratorBlueprintGeneratedClass(InOuter, InName, InParentClass,
 	                                              [](UClass*)
 	                                              {
 	                                              });
 }
 
-UBlueprintGeneratedClass* FDynamicClassGenerator::GeneratorCSharpBlueprintGeneratedClass(UPackage* InOuter,
+UBlueprintGeneratedClass* FDynamicClassGenerator::GeneratorBlueprintGeneratedClass(UPackage* InOuter,
 	const FString& InName, UClass* InParentClass, const TFunction<void(UClass*)>& InProcessGenerator)
 {
 	auto Class = NewObject<UBlueprintGeneratedClass>(InOuter, *InName, RF_Public);

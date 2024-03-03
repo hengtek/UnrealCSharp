@@ -5,6 +5,8 @@
 class FDynamicGeneratorCore
 {
 public:
+	static void Generator(const FString& InAttribute, const TFunction<void(MonoClass*)>& InGenerator);
+	
 	static UPackage* GetOuter();
 
 	static FString GetClassNameSpace();

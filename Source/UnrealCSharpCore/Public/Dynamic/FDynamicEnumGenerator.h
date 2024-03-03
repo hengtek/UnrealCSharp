@@ -27,9 +27,9 @@ private:
 	static void GeneratorEnum(const FString& InName, UEnum* InEnum,
 	                          const TFunction<void(UEnum*)>& InProcessGenerator);
 
-	static UEnum* GeneratorCSharpEnum(UPackage* InOuter, const FString& InName);
+	static UEnum* GeneratorEnum(UPackage* InOuter, const FString& InName);
 
-	static UEnum* GeneratorCSharpEnum(UPackage* InOuter, const FString& InName,
+	static UEnum* GeneratorEnum(UPackage* InOuter, const FString& InName,
 	                                  const TFunction<void(UEnum*)>& InProcessGenerator);
 
 #if WITH_EDITOR

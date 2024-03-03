@@ -57,15 +57,15 @@ private:
 		EndGenerator(InClass);
 	}
 
-	static UClass* GeneratorCSharpClass(UPackage* InOuter, const FString& InName, UClass* InParentClass);
+	static UClass* GeneratorClass(UPackage* InOuter, const FString& InName, UClass* InParentClass);
 
-	static UClass* GeneratorCSharpClass(UPackage* InOuter, const FString& InName, UClass* InParentClass,
+	static UClass* GeneratorClass(UPackage* InOuter, const FString& InName, UClass* InParentClass,
 	                                    const TFunction<void(UClass*)>& InProcessGenerator);
 
-	static UBlueprintGeneratedClass* GeneratorCSharpBlueprintGeneratedClass(
+	static UBlueprintGeneratedClass* GeneratorBlueprintGeneratedClass(
 		UPackage* InOuter, const FString& InName, UClass* InParentClass);
 
-	static UBlueprintGeneratedClass* GeneratorCSharpBlueprintGeneratedClass(
+	static UBlueprintGeneratedClass* GeneratorBlueprintGeneratedClass(
 		UPackage* InOuter, const FString& InName, UClass* InParentClass,
 		const TFunction<void(UClass*)>& InProcessGenerator);
 

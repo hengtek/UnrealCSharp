@@ -1,7 +1,5 @@
 #include "Dynamic/FDynamicEnumGenerator.h"
 #include "CoreMacro/ClassMacro.h"
-#include "CoreMacro/FunctionMacro.h"
-#include "CoreMacro/MonoMacro.h"
 #include "CoreMacro/NamespaceMacro.h"
 #include "Domain/FMonoDomain.h"
 #include "Template/TGetArrayLength.inl"
@@ -21,39 +19,11 @@ TSet<UEnum*> FDynamicEnumGenerator::DynamicEnumSet;
 
 void FDynamicEnumGenerator::Generator()
 {
-	const auto AttributeMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_DYNAMIC), CLASS_U_ENUM_ATTRIBUTE);
-
-	const auto AttributeMonoType = FMonoDomain::Class_Get_Type(AttributeMonoClass);
-
-	const auto AttributeMonoReflectionType = FMonoDomain::Type_Get_Object(AttributeMonoType);
-
-	const auto UtilsMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_CORE_UOBJECT), CLASS_UTILS);
-
-	void* InParams[2] = {
-		AttributeMonoReflectionType,
-		FMonoDomain::GCHandle_Get_Target_V2(FMonoDomain::AssemblyGCHandles[1])
-	};
-
-	const auto GetTypesWithAttributeMethod = FMonoDomain::Class_Get_Method_From_Name(
-		UtilsMonoClass, FUNCTION_UTILS_GET_TYPES_WITH_ATTRIBUTE, TGetArrayLength(InParams));
-
-	const auto Types = reinterpret_cast<MonoArray*>(FMonoDomain::Runtime_Invoke(
-		GetTypesWithAttributeMethod, nullptr, InParams));
-
-	const auto Length = FMonoDomain::Array_Length(Types);
-
-	for (auto Index = 0; Index < Length; ++Index)
+	FDynamicGeneratorCore::Generator(CLASS_U_ENUM_ATTRIBUTE,
+	[](MonoClass* InMonoClass)
 	{
-		const auto ReflectionType = ARRAY_GET(Types, MonoReflectionType*, Index);
-
-		const auto Type = FMonoDomain::Reflection_Type_Get_Type(ReflectionType);
-
-		const auto Class = FMonoDomain::Type_Get_Class(Type);
-
-		Generator(Class);
-	}
+		Generator(InMonoClass);
+	});
 }
 
 #if WITH_EDITOR
@@ -73,7 +43,7 @@ void FDynamicEnumGenerator::CodeAnalysisGenerator()
 	{
 		if (!DynamicEnumMap.Contains(EnumName))
 		{
-			GeneratorCSharpEnum(FDynamicGeneratorCore::GetOuter(), EnumName);
+			GeneratorEnum(FDynamicGeneratorCore::GetOuter(), EnumName);
 		}
 	}
 }
@@ -111,7 +81,7 @@ void FDynamicEnumGenerator::Generator(MonoClass* InMonoClass)
 	}
 	else
 	{
-		Enum = GeneratorCSharpEnum(Outer, ClassName,
+		Enum = GeneratorEnum(Outer, ClassName,
 		                           [InMonoClass](UEnum* InEnum)
 		                           {
 			                           ProcessGenerator(InMonoClass, InEnum);
@@ -195,15 +165,15 @@ void FDynamicEnumGenerator::GeneratorEnum(const FString& InName, UEnum* InEnum,
 	EndGenerator(InEnum);
 }
 
-UEnum* FDynamicEnumGenerator::GeneratorCSharpEnum(UPackage* InOuter, const FString& InName)
+UEnum* FDynamicEnumGenerator::GeneratorEnum(UPackage* InOuter, const FString& InName)
 {
-	return GeneratorCSharpEnum(InOuter, InName,
+	return GeneratorEnum(InOuter, InName,
 	                           [](UEnum*)
 	                           {
 	                           });
 }
 
-UEnum* FDynamicEnumGenerator::GeneratorCSharpEnum(UPackage* InOuter, const FString& InName,
+UEnum* FDynamicEnumGenerator::GeneratorEnum(UPackage* InOuter, const FString& InName,
                                                   const TFunction<void(UEnum*)>& InProcessGenerator)
 {
 	const auto Enum = NewObject<UEnum>(InOuter, *InName, RF_Public);

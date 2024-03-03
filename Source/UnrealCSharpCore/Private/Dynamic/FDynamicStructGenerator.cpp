@@ -2,14 +2,11 @@
 #include "Bridge/FTypeBridge.h"
 #include "Common/FUnrealCSharpFunctionLibrary.h"
 #include "CoreMacro/ClassMacro.h"
-#include "CoreMacro/FunctionMacro.h"
-#include "CoreMacro/MonoMacro.h"
 #include "CoreMacro/NamespaceMacro.h"
 #include "CoreMacro/PropertyAttributeMacro.h"
 #include "Domain/FMonoDomain.h"
 #include "Dynamic/FDynamicClassGenerator.h"
 #include "Dynamic/FDynamicGeneratorCore.h"
-#include "Template/TGetArrayLength.inl"
 #if WITH_EDITOR
 #include "K2Node_StructOperation.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -24,39 +21,11 @@ TSet<UDynamicScriptStruct*> FDynamicStructGenerator::DynamicStructSet;
 
 void FDynamicStructGenerator::Generator()
 {
-	const auto AttributeMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_DYNAMIC), CLASS_U_STRUCT_ATTRIBUTE);
-
-	const auto AttributeMonoType = FMonoDomain::Class_Get_Type(AttributeMonoClass);
-
-	const auto AttributeMonoReflectionType = FMonoDomain::Type_Get_Object(AttributeMonoType);
-
-	const auto UtilsMonoClass = FMonoDomain::Class_From_Name(
-		COMBINE_NAMESPACE(NAMESPACE_ROOT, NAMESPACE_CORE_UOBJECT), CLASS_UTILS);
-
-	void* InParams[2] = {
-		AttributeMonoReflectionType,
-		FMonoDomain::GCHandle_Get_Target_V2(FMonoDomain::AssemblyGCHandles[1])
-	};
-
-	const auto GetTypesWithAttributeMethod = FMonoDomain::Class_Get_Method_From_Name(
-		UtilsMonoClass, FUNCTION_UTILS_GET_TYPES_WITH_ATTRIBUTE, TGetArrayLength(InParams));
-
-	const auto Types = reinterpret_cast<MonoArray*>(FMonoDomain::Runtime_Invoke(
-		GetTypesWithAttributeMethod, nullptr, InParams));
-
-	const auto Length = FMonoDomain::Array_Length(Types);
-
-	for (auto Index = 0; Index < Length; ++Index)
-	{
-		const auto ReflectionType = ARRAY_GET(Types, MonoReflectionType*, Index);
-
-		const auto Type = FMonoDomain::Reflection_Type_Get_Type(ReflectionType);
-
-		const auto Class = FMonoDomain::Type_Get_Class(Type);
-
-		Generator(Class);
-	}
+	FDynamicGeneratorCore::Generator(CLASS_U_STRUCT_ATTRIBUTE,
+[](MonoClass* InMonoClass)
+{
+	Generator(InMonoClass);
+});
 }
 
 #if WITH_EDITOR
@@ -76,7 +45,7 @@ void FDynamicStructGenerator::CodeAnalysisGenerator()
 	{
 		if (!DynamicStructMap.Contains(StructName))
 		{
-			GeneratorCSharpScriptStruct(FDynamicGeneratorCore::GetOuter(), StructName, nullptr);
+			GeneratorScriptStruct(FDynamicGeneratorCore::GetOuter(), StructName, nullptr);
 		}
 	}
 }
@@ -130,7 +99,7 @@ void FDynamicStructGenerator::Generator(MonoClass* InMonoClass)
 		}
 	}
 
-	const auto ScriptStruct = GeneratorCSharpScriptStruct(Outer, ClassName, ParentClass,
+	const auto ScriptStruct = GeneratorScriptStruct(Outer, ClassName, ParentClass,
 	                                                      [InMonoClass](UDynamicScriptStruct* InScriptStruct)
 	                                                      {
 		                                                      ProcessGenerator(InMonoClass, InScriptStruct);
@@ -237,16 +206,16 @@ void FDynamicStructGenerator::GeneratorScriptStruct(const FString& InName, UDyna
 	EndGenerator(InScriptStruct);
 }
 
-UDynamicScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* InOuter, const FString& InName,
+UDynamicScriptStruct* FDynamicStructGenerator::GeneratorScriptStruct(UPackage* InOuter, const FString& InName,
                                                                            UScriptStruct* InParentScriptStruct)
 {
-	return GeneratorCSharpScriptStruct(InOuter, InName, InParentScriptStruct,
+	return GeneratorScriptStruct(InOuter, InName, InParentScriptStruct,
 	                                   [](UDynamicScriptStruct*)
 	                                   {
 	                                   });
 }
 
-UDynamicScriptStruct* FDynamicStructGenerator::GeneratorCSharpScriptStruct(UPackage* InOuter, const FString& InName,
+UDynamicScriptStruct* FDynamicStructGenerator::GeneratorScriptStruct(UPackage* InOuter, const FString& InName,
                                                                            UScriptStruct* InParentScriptStruct,
                                                                            const TFunction<void(UDynamicScriptStruct*)>&
                                                                            InProcessGenerator)
